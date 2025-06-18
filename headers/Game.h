@@ -7,14 +7,11 @@
 
 class Game {
 private:
-    GLFWwindow* _window;
-    Board* _board;
-    size_t _board_size;
-    size_t _win_cond;
+    bool _game_over, _tie, _restart;
+    size_t _board_size, _game_win_cond;
     Board::Marker _current_player;
-    bool _game_over;
-    bool _tie;
-    bool _restart;
+    GLFWwindow* _window;
+    Board* _game_board;
 
     void drawMenu(void);
     void drawBoard(void);
@@ -24,4 +21,5 @@ public:
     ~Game();
 
     void run(void);
+    bool restartEnabled(void) const;
 };

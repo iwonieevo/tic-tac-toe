@@ -1,17 +1,22 @@
 #include "..\headers\Game.h"
 #include <iostream>
 
-Game::Game() : _window(nullptr), _board(nullptr), _board_size(3), _win_cond(3), _current_player(Board::Marker::X), _game_over(false), _tie(false), _restart(false) {}
+Game::Game() : _window(nullptr), _game_board(nullptr), _board_size(3), _game_win_cond(3), _current_player(Board::Marker::X), _game_over(false), _tie(false), _restart(false) {}
 
 Game::~Game() {
-    if(_board) {
-        delete _board;
+    if (_game_board) {
+        delete _game_board;
     }
 
-    if(_window) {
+    if (_window) {
         glfwDestroyWindow(_window);
-        glfwTerminate();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwTerminate();
 }
 
 void Game::run(void) {
@@ -46,7 +51,7 @@ void Game::run(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if(!_board) {
+        if(!_game_board) {
             drawMenu();
         } else {
             drawBoard();
@@ -61,20 +66,6 @@ void Game::run(void) {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(_window);
     }
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(_window);
-    glfwTerminate();
-
-    if(_restart) {
-        _restart = false, _game_over = false, _tie = false;
-        _window = nullptr, _board = nullptr;
-        _board_size = 3, _win_cond = 3; 
-        _current_player = Board::Marker::X;
-        run();
-    }
 }
 
 void Game::drawMenu(void) {
@@ -85,27 +76,27 @@ void Game::drawMenu(void) {
             _board_size = 3;
         }
 
-        if(_win_cond > _board_size) {
-            _win_cond = _board_size;
+        if(_game_win_cond > _board_size) {
+            _game_win_cond = _board_size;
         }
     }
-    if(ImGui::InputInt("Winning Line Length", (int*)&_win_cond)) {
-        if(_win_cond > _board_size) {
-            _win_cond = _board_size;
-        } else if(_win_cond < 2) {
-            _win_cond = 2;
+    if(ImGui::InputInt("Winning Line Length", (int*)&_game_win_cond)) {
+        if(_game_win_cond > _board_size) {
+            _game_win_cond = _board_size;
+        } else if(_game_win_cond < 2) {
+            _game_win_cond = 2;
         }
     }
 
     if(ImGui::Button("Start Game")) {
-        _board = new Board(_board_size, _win_cond);
+        _game_board = new Board(_board_size, _game_win_cond);
     }
 
     ImGui::End();
 }
 
 void Game::drawBoard(void) {
-    ImGui::Begin("Tic-Tac-Toe");
+    ImGui::Begin("Tic-Tac-Toe", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 
     if(_game_over && !_tie) {
         ImGui::Text("Game Over! Winner: %s", _current_player == Board::Marker::X ? "Player X" : "Player O");
@@ -118,7 +109,7 @@ void Game::drawBoard(void) {
     for(size_t row = 0; row < _board_size; row++) {
         for(size_t col = 0; col < _board_size; col++) {
             ImGui::PushID((int)(row * _board_size + col));
-            Board::Marker marker = _board->getMarkerAt(row, col);
+            Board::Marker marker = _game_board->getMarkerAt(row, col);
             const char* label;
             switch(marker) {
                 case Board::Marker::X:
@@ -134,8 +125,8 @@ void Game::drawBoard(void) {
             
             if(_game_over) {
                 bool isWinPos = false;
-                for(size_t i = 0; i < _win_cond; i++) {
-                    if(_board->_win_pos[i][0] == row && _board->_win_pos[i][1] == col) {
+                for(size_t i = 0; i < _game_win_cond; i++) {
+                    if(_game_board->_win_pos[i][0] == row && _game_board->_win_pos[i][1] == col) {
                         isWinPos = true;
                         break;
                     }
@@ -152,10 +143,10 @@ void Game::drawBoard(void) {
                 ImGui::Button(label, ImVec2(50, 50));
             } else {
                 if(ImGui::Button(label, ImVec2(50, 50)) && marker == Board::Marker::Empty && !_game_over) {
-                    _board->setToMarker(row, col, _current_player);
-                    if (_board->checkWin() != Board::Marker::Empty) {
+                    _game_board->setToMarker(row, col, _current_player);
+                    if (_game_board->checkWin() != Board::Marker::Empty) {
                         _game_over = true;
-                    } else if(!_board->checkAvailableMove()) {
+                    } else if(!_game_board->checkAvailableMove()) {
                         _tie = true;
                     } else {
                         _current_player = (_current_player == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
@@ -174,8 +165,13 @@ void Game::drawBoard(void) {
     }
 
     if(ImGui::Button("Exit")) {
+        _restart = false;
         glfwSetWindowShouldClose(_window, GLFW_TRUE);
     }
 
     ImGui::End();
+}
+
+bool Game::restartEnabled(void) const {
+    return _restart;
 }

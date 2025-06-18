@@ -25,15 +25,19 @@ Board::Board(size_t size, size_t win_cond) {
 }
 
 Board::~Board() {
-    for(size_t i = 0; i < _size; i++) {
-        delete[] _win_pos[i];
+    if(_win_pos) {
+        for (size_t i = 0; i < _win_cond; i++) {
+            delete[] _win_pos[i];
+        }
+        delete[] _win_pos;
     }
-    delete[] _win_pos;
 
-    for(size_t i = 0; i < _size; i++) {
-        delete[] _board[i];
+    if(_board) {
+        for(size_t i = 0; i < _size; i++) {
+            delete[] _board[i];
+        }
+        delete[] _board;
     }
-    delete[] _board;
 }
 
 Board::Marker Board::getMarkerAt(size_t row, size_t col) const {
