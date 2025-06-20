@@ -1,7 +1,8 @@
 #include "..\headers\Game.h"
 #include <iostream>
 
-Game::Game() : _window(nullptr), _game_board(nullptr), _board_size(3), _game_win_cond(3), _current_player(Board::Marker::X), _game_over(false), _tie(false), _restart(false) {}
+Game::Game() : _window(nullptr), _game_board(nullptr), _board_size(3), _game_win_cond(3), _current_player(Board::Marker::X), 
+               _game_over(false), _tie(false), _restart(false), _vs_bot(false), _bot_move(false) {}
 
 Game::~Game() {
     if (_game_board) {
@@ -71,6 +72,7 @@ void Game::run(void) {
 void Game::drawMenu(void) {
     ImGui::Begin("Menu");
     ImGui::Text("Welcome to Tic-Tac-Toe!");
+    ImGui::SetNextItemWidth(250);
     if(ImGui::InputInt("Board Size", (int*)&_board_size)) {
         if(_board_size < 3) {
             _board_size = 3;
@@ -80,12 +82,19 @@ void Game::drawMenu(void) {
             _game_win_cond = _board_size;
         }
     }
+
+    ImGui::SetNextItemWidth(250);
     if(ImGui::InputInt("Winning Line Length", (int*)&_game_win_cond)) {
         if(_game_win_cond > _board_size) {
             _game_win_cond = _board_size;
         } else if(_game_win_cond < 2) {
             _game_win_cond = 2;
         }
+    }
+
+    ImGui::Checkbox("Vs Bot", &_vs_bot);
+    if(_vs_bot) {
+        ImGui::Checkbox("Bot is moving first", &_bot_move);
     }
 
     if(ImGui::Button("Start Game")) {
@@ -123,39 +132,59 @@ void Game::drawBoard(void) {
                     break;
             }
             
-            if(_game_over) {
-                bool isWinPos = false;
-                for(size_t i = 0; i < _game_win_cond; i++) {
-                    if(_game_board->_win_pos[i][0] == row && _game_board->_win_pos[i][1] == col) {
-                        isWinPos = true;
-                        break;
-                    }
-                }
-
-                if (isWinPos) {
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
-                    ImGui::Button(label, ImVec2(50, 50));
-                    ImGui::PopStyleColor();
-                } else {
-                    ImGui::Button(label, ImVec2(50, 50));
-                }
-            } else if(_tie) {
-                ImGui::Button(label, ImVec2(50, 50));
-            } else {
-                if(ImGui::Button(label, ImVec2(50, 50)) && marker == Board::Marker::Empty && !_game_over) {
-                    _game_board->setToMarker(row, col, _current_player);
-                    if (_game_board->checkWin() != Board::Marker::Empty) {
-                        _game_over = true;
-                    } else if(!_game_board->checkAvailableMove()) {
-                        _tie = true;
-                    } else {
-                        _current_player = (_current_player == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
-                    }
+            bool isWinPos = false;
+            for(size_t i = 0; i < _game_win_cond; i++) {
+                if(_game_board->_win_pos[i] == row * _board_size + col) {
+                    isWinPos = true;
+                    break;
                 }
             }
 
+            if(_game_over && !_tie && isWinPos) {
+                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.4f, 0.7f, 0.4f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.6f, 0.3f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.2f, 0.5f, 0.2f, 1.0f));
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.3f, 0.5f, 0.8f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.4f, 0.7f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.15f, 0.3f, 0.5f, 1.0f));
+            }
+
+            if(ImGui::Button(label, ImVec2(50, 50)) && marker == Board::Marker::Empty && !_game_over && (!_vs_bot || (_vs_bot && !_bot_move))) {
+                _game_board->setToMarker(row, col, _current_player);
+                _bot_move = true;
+                if (_game_board->checkWin() != Board::Marker::Empty) {
+                    _game_over = true;
+                    _tie = false;
+                } else if(!_game_board->checkAvailableMove()) {
+                    _game_over = true;
+                    _tie = true;
+                } else {
+                    _current_player = (_current_player == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
+                }
+            }
+
+            ImGui::PopStyleColor(3);
+
             ImGui::PopID();
-            if (col < _board_size - 1) ImGui::SameLine();
+            if(col < _board_size - 1) {
+                ImGui::SameLine();
+            }
+        }
+    }
+
+    if(_vs_bot && _bot_move && !_game_over) {
+        size_t pos=chooseBestMove(_current_player);
+        _game_board->setToMarker(pos / _board_size, pos % _board_size, _current_player);
+        _bot_move = false;
+        if (_game_board->checkWin() != Board::Marker::Empty) {
+            _game_over = true;
+            _tie = false;
+        } else if(!_game_board->checkAvailableMove()) {
+            _game_over = true;
+            _tie = true;
+        } else {
+            _current_player = (_current_player == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
         }
     }
 
@@ -174,4 +203,124 @@ void Game::drawBoard(void) {
 
 bool Game::restartEnabled(void) const {
     return _restart;
+}
+
+size_t Game::chooseBestMove(Board::Marker bot_marker) {
+    int bestScore = -100000;
+    size_t bestRow, bestCol;
+
+    for(size_t r = 0; r < _board_size; r++) {
+        for(size_t c = 0; c < _board_size; c++) {
+            if(_game_board->getMarkerAt(r, c) == Board::Marker::Empty) {
+                _game_board->setToMarker(r, c, bot_marker);
+                int score = minimax(0, false, -100000, 100000, bot_marker);
+                _game_board->setToMarker(r, c, Board::Marker::Empty);
+                if(score > bestScore) {
+                    bestScore = score;
+                    bestRow = r;
+                    bestCol = c;
+                }
+            }
+        }
+    }
+    return bestRow * _board_size + bestCol;
+}
+
+int Game::minimax(int depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker) {
+    const int MAX_DEPTH = 4;
+    Board::Marker winner = _game_board->checkWin(), opponent_marker = (bot_marker == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
+    if(winner == bot_marker) {
+        return 10000 - depth;
+    } else if(winner == opponent_marker) {
+        return depth - 10000;
+    } else if(!_game_board->checkAvailableMove()) {
+        return 0;
+    } else if(depth >= MAX_DEPTH) {
+        int score = evaluateBoard(bot_marker);
+        score = (score > 9999) ? 9999 : score;
+        score = (score < -9999) ? -9999 : score;
+        return score;
+    }
+
+    int eval, mEval = (maximizing) ? -10000 : 10000;
+    for(size_t r = 0; r < _board_size; r++) {
+        for(size_t c = 0; c < _board_size; c++) {
+            if(_game_board->getMarkerAt(r, c) == Board::Marker::Empty) {
+                _game_board->setToMarker(r, c, (maximizing) ? bot_marker : opponent_marker);
+                eval = minimax(depth + 1, !maximizing, alpha, beta, bot_marker);
+                _game_board->setToMarker(r, c, Board::Marker::Empty);
+
+                if(maximizing) {
+                    mEval = (eval > mEval) ? eval : mEval; 
+                    alpha = (eval > alpha) ? alpha : mEval; 
+                } else {
+                    mEval = (eval < mEval) ? eval : mEval; 
+                    beta = (eval < beta) ? beta : mEval; 
+                }
+
+                if(beta <= alpha) {
+                    return mEval;
+                }
+            }
+        }
+    }
+    return mEval;
+}
+
+int Game::evaluateBoard(Board::Marker bot_marker) {
+    int score = 0;
+    for(size_t i = 0; i < _board_size; i++) {
+        // Check rows
+        score += evaluateLine(bot_marker, i, 0, 0, 1);
+
+        // Check columns
+        score += evaluateLine(bot_marker, 0, i, 1, 0);
+
+        // Check diagonals (skipping diagonals that are shorter then _win_condition)
+        if(i <= _board_size - _game_win_cond) {
+            score += evaluateLine(bot_marker, _board_size - 1 - i, 0, -1, 1);
+            score += evaluateLine(bot_marker, _board_size - 1, i, -1, 1);
+            score += evaluateLine(bot_marker, 0, i, 1, 1);
+            score += evaluateLine(bot_marker, i, 0, 1, 1);
+        }
+    }
+
+    return score;
+}
+
+int Game::evaluateLine(Board::Marker bot_marker, size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset) {
+    int line_score = 0;
+    size_t row = start_row, col = start_col, bot_c = 0, player_c = 0;
+    Board::Marker m = Board::Marker::Empty;
+    while(row < _board_size && col < _board_size) {
+        m = _game_board->getMarkerAt(row, col);
+        if(m == bot_marker) {
+            bot_c++;
+        } else if(m != Board::Marker::Empty) {
+            player_c++;
+        }
+
+        row += row_offset;
+        col += col_offset;
+    }
+
+    if(bot_c > 0 && player_c == 0) {
+        if(bot_c == _game_win_cond - 1) {
+            return 1000;
+        } else if(bot_c == _game_win_cond - 2) {
+            return 10;
+        } else {
+            return bot_c;
+        }
+    } else if(bot_c == 0 && player_c > 0) {
+        if(player_c == _game_win_cond - 1) {
+            return -1000;
+        } else if(player_c == _game_win_cond - 2) {
+            return -10;
+        } else {
+            return -player_c;
+        }
+    }
+
+    return line_score;
 }

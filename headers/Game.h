@@ -7,7 +7,7 @@
 
 class Game {
 private:
-    bool _game_over, _tie, _restart;
+    bool _game_over, _tie, _restart, _vs_bot, _bot_move;
     size_t _board_size, _game_win_cond;
     Board::Marker _current_player;
     GLFWwindow* _window;
@@ -15,6 +15,10 @@ private:
 
     void drawMenu(void);
     void drawBoard(void);
+    size_t chooseBestMove(Board::Marker bot_marker);
+    int minimax(int depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker);
+    int evaluateBoard(Board::Marker bot_marker);
+    int evaluateLine(Board::Marker bot_marker, size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset);
 
 public:
     Game();

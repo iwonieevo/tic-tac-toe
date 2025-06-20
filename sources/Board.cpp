@@ -18,17 +18,11 @@ Board::Board(size_t size, size_t win_cond) {
         }
     }
 
-    _win_pos = new size_t*[_win_cond];
-    for(size_t i = 0; i < _win_cond; i++) {
-        _win_pos[i] = new size_t[2];
-    }
+    _win_pos = new size_t[_win_cond];
 }
 
 Board::~Board() {
     if(_win_pos) {
-        for (size_t i = 0; i < _win_cond; i++) {
-            delete[] _win_pos[i];
-        }
         delete[] _win_pos;
     }
 
@@ -50,15 +44,15 @@ void Board::setToMarker(size_t row, size_t col, Board::Marker marker) {
 
 Board::Marker Board::checkLine(size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset) {
     size_t curr_line = 1, row = start_row, col = start_col;
-    _win_pos[0][0] = row, _win_pos[0][1] = col;
+    _win_pos[0] = row * _size + col;
     Marker curr_marker = Marker::Empty;
     while(row < _size && col < _size) {
         if(getMarkerAt(row, col) == curr_marker && curr_marker != Marker::Empty) {
-            _win_pos[curr_line][0] = row, _win_pos[curr_line][1] = col;
+            _win_pos[curr_line] = row * _size + col;
             curr_line++;
         } else {
             curr_line = 1;
-            _win_pos[0][0] = row, _win_pos[0][1] = col;
+            _win_pos[0] = row * _size + col;
             curr_marker = getMarkerAt(row, col);
         }
 

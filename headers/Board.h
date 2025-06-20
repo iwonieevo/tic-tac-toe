@@ -13,7 +13,7 @@ public:
         MARKER_NUM
     };
 
-    size_t **_win_pos;
+    size_t *_win_pos;
 
     Marker getMarkerAt(size_t row, size_t col) const;
     void setToMarker(size_t row, size_t col, Marker marker);
