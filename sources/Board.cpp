@@ -21,6 +21,19 @@ Board::Board(size_t size, size_t win_cond) {
     _win_pos = new size_t[_win_cond];
 }
 
+Board::Board(const Board& other) : _size(other._size), _win_cond(other._win_cond)
+    {
+        _board = new Marker*[_size];
+        for(size_t i = 0; i < _size; i++) {
+            _board[i] = new Marker[_size];
+            for(size_t j = 0; j < _size; j++) {
+                _board[i][j] = other._board[i][j];
+            }
+        }
+
+        _win_pos = new size_t[_win_cond];
+    }
+
 Board::~Board() {
     if(_win_pos) {
         delete[] _win_pos;

@@ -4,6 +4,7 @@
 class Board {
 public:
     Board(size_t size, size_t win_cond);
+    Board(const Board& other);
     ~Board();
 
     enum class Marker : uint8_t {
