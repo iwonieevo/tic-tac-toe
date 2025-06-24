@@ -123,13 +123,14 @@ Board::Marker Board::checkWin(void) {
     return Marker::Empty;
 }
 
-bool Board::checkAvailableMove(void) {
+size_t Board::countEmptySpaces(void) {
+    size_t counter = 0;
     for(size_t i = 0; i < _size; i++) {
         for(size_t j = 0; j < _size; j++) {
             if(_board[i][j] == Marker::Empty) {
-                return true;
+                counter++;
             }
         }
     }
-    return false;
+    return counter;
 }

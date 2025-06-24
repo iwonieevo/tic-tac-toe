@@ -99,11 +99,7 @@ void Game::drawMenu(void) {
     }
 
     if(ImGui::Button("Start Game")) {
-        if(_vs_ai && _is_ai_turn) {
-            snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_current_player == Board::Marker::X) ? "X (AI)" : "O (AI)");
-        } else {
-            snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_current_player == Board::Marker::X) ? "X" : "O");
-        }
+        snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_vs_ai && _is_ai_turn) ? ((_current_player == Board::Marker::X) ? "X (AI)" : "O (AI)") : ((_current_player == Board::Marker::X) ? "X" : "O"));
         snprintf(_text_to_display, sizeof(_text_to_display), "Current Player: %s is thinking...", _current_player_text);
         _game_board = new Board(_board_size, _game_win_cond);
     }
@@ -136,7 +132,7 @@ void Game::drawBoard(void) {
         ImGui::SameLine();
     }
 
-    ImGui::BeginChild("BoardRegion", ImVec2(_board_size * 50 + 300, _board_size * 50 + 75), true);
+    ImGui::BeginChild("BoardRegion", ImVec2(_board_size * 50 + 350, _board_size * 50 + 75), true);
     ImGui::Text(_text_to_display);
 
     // Calculate the best move in separate thread
@@ -155,7 +151,6 @@ void Game::drawBoard(void) {
     // If the best move has been calculated, do it
     if(_vs_ai && _is_ai_turn && !_game_over && !_ai_thinking && !_was_move_made && _ai_finished_thinking) {
         _game_board->setToMarker(_ai_move / _board_size, _ai_move % _board_size, _current_player);
-        snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_current_player == Board::Marker::O) ? "X" : "O");
         _was_move_made = true;
         _ai_finished_thinking = false;
         _is_ai_turn = false;
@@ -193,13 +188,10 @@ void Game::drawBoard(void) {
             // If the button was pressed and it was Player's turn to make a move, update board
             if(ImGui::Button(label, ImVec2(50, 50)) && marker == Board::Marker::Empty && !_game_over && !_was_move_made && (!_vs_ai || (_vs_ai && (!_is_ai_turn || !_ai_thinking)))) {
                 _game_board->setToMarker(row, col, _current_player);
-                _was_move_made = true;
                 if(_vs_ai) {
                     _is_ai_turn = true;
-                    snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_current_player == Board::Marker::O) ? "X (AI)" : "O (AI)");
-                } else {
-                    snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_current_player == Board::Marker::O) ? "X" : "O");
                 }
+                _was_move_made = true;
             }
 
             ImGui::PopStyleColor(3);
@@ -217,12 +209,13 @@ void Game::drawBoard(void) {
             _game_over = true;
             _tie = false;
             snprintf(_text_to_display, sizeof(_text_to_display), "Game Over! Winner: %s", _current_player_text);
-        } else if(!_game_board->checkAvailableMove()) {
+        } else if(_game_board->countEmptySpaces() == 0) {
             _game_over = true;
             _tie = true;
             snprintf(_text_to_display, sizeof(_text_to_display), "Tie - Game Over!");
         } else {
             _current_player = (_current_player == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
+            snprintf(_current_player_text, sizeof(_text_to_display), "%s", (_vs_ai && _is_ai_turn) ? ((_current_player == Board::Marker::X) ? "X (AI)" : "O (AI)") : ((_current_player == Board::Marker::X) ? "X" : "O"));
             snprintf(_text_to_display, sizeof(_text_to_display), "Current Player: %s is thinking...", _current_player_text);
         }
         _was_move_made = false;
@@ -279,14 +272,14 @@ size_t Game::chooseBestMove(Board::Marker bot_marker) {
     return bestRow * _board_size + bestCol;
 }
 
-int Game::minimax(Board* board_to_eval, int depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker) {
-    const int MAX_DEPTH = _game_win_cond + 2;
+int Game::minimax(Board* board_to_eval, size_t depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker) {
+    const size_t MAX_DEPTH = calculateMaxDepth(board_to_eval->countEmptySpaces());
     Board::Marker winner = board_to_eval->checkWin(), opponent_marker = (bot_marker == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
     if(winner == bot_marker) {
         return 10000 - depth;
     } else if(winner == opponent_marker) {
         return depth - 10000;
-    } else if(!board_to_eval->checkAvailableMove()) {
+    } else if(board_to_eval->countEmptySpaces() == 0) {
         return 0;
     } else if(depth >= MAX_DEPTH) {
         int score = evaluateBoard(board_to_eval, bot_marker);
@@ -361,7 +354,7 @@ int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t st
         if(bot_c == _game_win_cond - 1) {
             return 1000;
         } else if(bot_c == _game_win_cond - 2) {
-            return 10;
+            return 100;
         } else {
             return bot_c;
         }
@@ -369,11 +362,20 @@ int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t st
         if(player_c == _game_win_cond - 1) {
             return -1000;
         } else if(player_c == _game_win_cond - 2) {
-            return -10;
+            return -100;
         } else {
             return -player_c;
         }
     }
 
     return line_score;
+}
+
+size_t Game::calculateMaxDepth(size_t empty_spaces_count) const {
+    if (empty_spaces_count <= 3) {
+        return empty_spaces_count;
+    }
+    double ratio = 1.0 - (double)(empty_spaces_count / (_board_size * _board_size));
+    size_t depth = 3 + static_cast<size_t>(7 * ratio);
+    return (depth < empty_spaces_count) ? depth : empty_spaces_count;
 }

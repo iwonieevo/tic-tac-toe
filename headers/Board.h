@@ -19,7 +19,7 @@ public:
     Marker getMarkerAt(size_t row, size_t col) const;
     void setToMarker(size_t row, size_t col, Marker marker);
     Marker checkWin(void);
-    bool checkAvailableMove(void);
+    size_t countEmptySpaces(void);
     
 private:
     size_t _size, _win_cond;

@@ -27,7 +27,8 @@ private:
     void drawMenu(void);
     void drawBoard(void);
     size_t chooseBestMove(Board::Marker bot_marker);
-    int minimax(Board* board_to_eval, int depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker);
+    int minimax(Board* board_to_eval, size_t depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker);
+    size_t calculateMaxDepth(size_t empty_spaces_count) const;
     int evaluateBoard(Board* board_to_eval, Board::Marker bot_marker);
     int evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset);
 
