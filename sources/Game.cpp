@@ -3,7 +3,7 @@
 Game::Game() : _window(nullptr), _game_board(nullptr), _board_size(3), _game_win_cond(3), 
                _current_player(Board::Marker::X), _text_to_display(""), _current_player_text(""),
                _game_over(false), _tie(false), _restart(false), _vs_ai(false), _is_ai_turn(false), 
-               _was_move_made(false), _ai_thinking(false), _ai_finished_thinking(false) {}
+               _was_move_made(false), _ai_thinking(false), _ai_finished_thinking(false), MAX_DEPTH(3) {}
 
 Game::~Game() {
     if (_game_board) {
@@ -241,6 +241,7 @@ bool Game::restartEnabled(void) const {
 }
 
 size_t Game::chooseBestMove(Board::Marker bot_marker) {
+    calculateMaxDepth(_game_board->countEmptySpaces());
     int bestScore = -100000;
     size_t bestRow, bestCol;
     std::vector<std::future<std::pair<int, size_t>>> futures;
@@ -273,7 +274,6 @@ size_t Game::chooseBestMove(Board::Marker bot_marker) {
 }
 
 int Game::minimax(Board* board_to_eval, size_t depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker) {
-    const size_t MAX_DEPTH = calculateMaxDepth(board_to_eval->countEmptySpaces());
     Board::Marker winner = board_to_eval->checkWin(), opponent_marker = (bot_marker == Board::Marker::X) ? Board::Marker::O : Board::Marker::X;
     if(winner == bot_marker) {
         return 10000 - depth;
@@ -335,7 +335,6 @@ int Game::evaluateBoard(Board* board_to_eval, Board::Marker bot_marker) {
 }
 
 int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset) {
-    int line_score = 0;
     size_t row = start_row, col = start_col, bot_c = 0, player_c = 0;
     Board::Marker m = Board::Marker::Empty;
     while(row < _board_size && col < _board_size) {
@@ -350,7 +349,7 @@ int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t st
         col += col_offset;
     }
 
-    if(bot_c > 0 && player_c == 0) {
+    if(player_c == 0) {
         if(bot_c == _game_win_cond - 1) {
             return 1000;
         } else if(bot_c == _game_win_cond - 2) {
@@ -358,7 +357,7 @@ int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t st
         } else {
             return bot_c;
         }
-    } else if(bot_c == 0 && player_c > 0) {
+    } else if(bot_c == 0) {
         if(player_c == _game_win_cond - 1) {
             return -1000;
         } else if(player_c == _game_win_cond - 2) {
@@ -366,16 +365,17 @@ int Game::evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t st
         } else {
             return -player_c;
         }
+    } else {
+        return 0;
     }
-
-    return line_score;
 }
 
-size_t Game::calculateMaxDepth(size_t empty_spaces_count) const {
+void Game::calculateMaxDepth(size_t empty_spaces_count) {
     if (empty_spaces_count <= 3) {
-        return empty_spaces_count;
+        MAX_DEPTH = 3;
+        return;
     }
     double ratio = 1.0 - (double)(empty_spaces_count / (_board_size * _board_size));
-    size_t depth = 3 + static_cast<size_t>(7 * ratio);
-    return (depth < empty_spaces_count) ? depth : empty_spaces_count;
+    size_t depth = 3 + static_cast<size_t>(_game_win_cond * ratio);
+    MAX_DEPTH = (depth < empty_spaces_count) ? depth : empty_spaces_count;
 }

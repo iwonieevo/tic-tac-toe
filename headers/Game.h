@@ -17,7 +17,7 @@ private:
     std::atomic<bool> _ai_thinking;
     std::thread _ai_thread;
     std::vector<float> _ai_timetable;
-    size_t _board_size, _game_win_cond, _ai_move;
+    size_t _board_size, _game_win_cond, _ai_move, MAX_DEPTH;
     Board::Marker _current_player;
     char _text_to_display[60];
     char _current_player_text[10];
@@ -28,7 +28,7 @@ private:
     void drawBoard(void);
     size_t chooseBestMove(Board::Marker bot_marker);
     int minimax(Board* board_to_eval, size_t depth, bool maximizing, int alpha, int beta, Board::Marker bot_marker);
-    size_t calculateMaxDepth(size_t empty_spaces_count) const;
+    void calculateMaxDepth(size_t empty_spaces_count);
     int evaluateBoard(Board* board_to_eval, Board::Marker bot_marker);
     int evaluateLine(Board* board_to_eval, Board::Marker bot_marker, size_t start_row, size_t start_col, int8_t row_offset, int8_t col_offset);
 
